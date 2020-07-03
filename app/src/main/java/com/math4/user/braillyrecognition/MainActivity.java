@@ -12,6 +12,7 @@ package com.math4.user.braillyrecognition;
         import android.os.Bundle;
         import android.os.Environment;
         import android.util.Log;
+        import android.view.LayoutInflater;
         import android.view.SurfaceHolder;
         import android.view.SurfaceView;
         import android.view.ViewGroup.LayoutParams;
@@ -22,10 +23,13 @@ package com.math4.user.braillyrecognition;
 
         import android.hardware.Camera;
         import android.hardware.Camera.Size;
+        import android.widget.TextView;
         import android.widget.Toast;
 
         import androidx.core.app.ActivityCompat;
         import androidx.core.content.ContextCompat;
+
+        import com.google.android.material.bottomsheet.BottomSheetDialog;
 
         import org.pytorch.IValue;
         import org.pytorch.Module;
@@ -44,6 +48,8 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Vi
     private SurfaceHolder surfaceHolder;
     private SurfaceView preview;
     private Button shotBtn;
+    TextView result;
+    BottomSheetDialog bottomSheetDialog;
 
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -68,10 +74,14 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Vi
         surfaceHolder.addCallback(this);
         surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 
-        camera.autoFocus(this);
         // кнопка имеет имя Button01
         shotBtn = findViewById(R.id.Button01);
         shotBtn.setOnClickListener(this);
+
+        View view = LayoutInflater.from(this).inflate(R.layout.fragment_bottom_sheet_result, null);//Главные функции
+        bottomSheetDialog = new BottomSheetDialog(this);
+        bottomSheetDialog.setContentView(view);
+        result=view.findViewById(R.id.textResult);
     }
 
     public static String assetFilePath(Context context, String assetName) throws IOException {
@@ -176,11 +186,14 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Vi
     @Override
     public void onClick(View v)
     {
+        Toast.makeText(getApplicationContext(),"Загрузка",Toast.LENGTH_SHORT).show();
+
         if (v == shotBtn)
         {
             // либо делаем снимок непосредственно здесь
             // 	либо включаем обработчик автофокуса
 
+            camera.autoFocus(this);
 //            camera.takePicture(null, null, null, this);
         }
     }
@@ -191,7 +204,6 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Vi
         // сохраняем полученные jpg в папке /sdcard/CameraExample/
         // имя файла - System.currentTimeMillis()
         Log.e("CHECKCHECK", "hi");
-        Toast.makeText(getApplicationContext(),"AAAAAAAAAAAA",Toast.LENGTH_LONG).show();
 
         try
         {
@@ -209,19 +221,17 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Vi
             Module module=null;
 
 //            try {
-            Toast.makeText(getApplicationContext(),assetFilePath(this, "model.pt").toString(),Toast.LENGTH_LONG).show();
+//            Toast.makeText(getApplicationContext(),assetFilePath(this, "model.pt").toString(),Toast.LENGTH_LONG).show();
             Log.e("checkAsset",assetFilePath(this, "model.pt").toString());
             module = Module.load(assetFilePath(this, "model.pt"));
 //            }catch (IOException e){
 //            }
-            Bitmap bitmap = BitmapFactory.decodeByteArray(paramArrayOfByte , 0, paramArrayOfByte .length);
-            Tensor inputTensor = TensorImageUtils.bitmapToFloat32Tensor(bitmap,
+            Bitmap originalBitmap = BitmapFactory.decodeByteArray(paramArrayOfByte , 0, paramArrayOfByte.length);
+            Bitmap resizedBitmap = Bitmap.createScaledBitmap(originalBitmap, 86, 86, false);
+            Tensor inputTensor = TensorImageUtils.bitmapToFloat32Tensor(resizedBitmap,
                     TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB);
 //            Toast.makeText(getApplicationContext(),"IEBALPOLINKU",Toast.LENGTH_LONG).show();
 
-            if(module==null) {
-                Toast.makeText(getApplicationContext(), "nullnull", Toast.LENGTH_LONG).show();
-            }
 
 
             Tensor outputTensor = module.forward(IValue.from(inputTensor)).toTensor();
@@ -233,7 +243,11 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Vi
             }
 
 
-            Toast.makeText(getApplicationContext(),String.valueOf(letter),Toast.LENGTH_LONG).show();
+
+            result.setText(((char)letter+"").toString());
+
+
+
 //            Log.e("checkcheckLetter",(char)letter+"");
 //
 
@@ -243,6 +257,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback, Vi
 
         }
 
+        bottomSheetDialog.show();
         // после того, как снимок сделан, показ превью отключается. необходимо включить его
         paramCamera.startPreview();
     }
